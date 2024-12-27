@@ -1,6 +1,9 @@
 package common
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 func PopulateStringCombinationsAtLength(results map[string]bool, pickChars string, prefix string, length int) {
 	if length == 0 {
@@ -88,6 +91,14 @@ type Grid [][]byte
 type Pos struct {
 	Y int
 	X int
+}
+
+func (p Pos) Add(o Pos) Pos {
+	return Pos{Y: p.Y + o.Y, X: p.X + o.X}
+}
+
+func (p Pos) Scale(s int) Pos {
+	return Pos{Y: p.Y * s, X: p.X * s}
 }
 
 func (p Pos) String() string {
@@ -191,4 +202,17 @@ func Dedupe[T comparable](values []T) []T {
 		vs = append(vs, v)
 	}
 	return vs
+}
+
+func ByteCharToInt(char byte) int {
+	return int(char - '0')
+}
+
+func StrToA(str string) int {
+	return int(StrToA64(str))
+}
+
+func StrToA64(str string) int64 {
+	val, _ := strconv.ParseInt(str, 10, 64)
+	return val
 }
