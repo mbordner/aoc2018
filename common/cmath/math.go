@@ -8,7 +8,7 @@ func Factorial[V Number](v V) V {
 	if v == V(1) {
 		return v
 	}
-	return v * Factorial(v-V(1))
+	return v * Factorial[V](v-V(1))
 }
 
 var (

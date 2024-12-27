@@ -95,7 +95,7 @@ func (c *Collection[T]) Add(l, r T) ([]T, error) {
 			if len(leftValStack) == 0 {
 				rightVal := els[i].val
 				if len(values) > 0 {
-					if leftVal == values[len(values)-1] {
+					if leftVal == values[len(values)-1] || leftVal == values[len(values)-1]+1 {
 						values[len(values)-1] = rightVal
 						continue
 					}
