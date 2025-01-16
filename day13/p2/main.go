@@ -138,6 +138,7 @@ func (cs Carts) Advance(track Track) []Collision {
 		c.p = np
 		if _, e := collisionMap[np]; e {
 			collisionMap[np] = append(collisionMap[np], c)
+			continue
 		} else {
 			collisionMap[np] = Collision{c}
 		}
