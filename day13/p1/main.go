@@ -195,7 +195,7 @@ func main() {
 	for {
 		collisions = carts.Advance(track)
 		moves++
-		track.Print(carts)
+		//track.Print(carts)
 		if len(collisions) > 0 {
 			break
 		}
