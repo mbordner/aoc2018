@@ -460,13 +460,8 @@ func (b *Battle) Outcome() (int, int) {
 	return hpSum * b.round, hpSum
 }
 
-func main() {
-	// test1.txt ✓  4988   15
-	// test3.txt ✓  31284   4
-	// test4.txt ✓  3478   15
-	// test5.txt ✓  6474   12
-	// test6.txt ✓  1140   34
-	b := NewBattle("../test6.txt", 200, 34, 200, 3)
+func tryElfAP(dataFile string, eAP int) (bool, *Battle) {
+	b := NewBattle(dataFile, 200, eAP, 200, 3)
 
 	referee := func(p *Player) bool {
 		if p.Type() == Elf {
@@ -476,15 +471,61 @@ func main() {
 	}
 
 	b.ref = referee
-
-	outcome, hp := b.Run()
-	fmt.Printf("outcome: %d after %d rounds with hp %d\n", outcome, b.round, hp)
+	b.Run()
 	if b.HasAnyAlive(Goblin) {
-		fmt.Println("exited early because elf died")
+		return false, nil
 	}
 
-	//log.Printf("outcome: %d after %d rounds with hp %d\n", outcome, b.round, hp)
-	//log.Println(b.GetPlayerTurnOrder())
-	//fmt.Printf("outcome: %d after %d rounds with hp %d\n", outcome, b.round, hp)
-	//fmt.Println(b.GetPlayerTurnOrder())
+	return true, b
+}
+
+func main() {
+	// test1.txt ✓  4988   15
+	// test3.txt ✓  31284   4
+	// test4.txt ✓  3478   15
+	// test5.txt ✓  6474   12
+	// test6.txt ✓  1140   34
+
+	maxEAP := 50
+	minEAP := 4
+	var successfulBattle *Battle
+
+	// find some upper bound
+	for {
+		elvesSurvived, _ := tryElfAP("../data.txt", maxEAP)
+		if !elvesSurvived {
+			maxEAP *= 2
+		} else {
+			break
+		}
+	}
+
+	// bin search
+	for {
+		ap := (maxEAP-minEAP-1)/2 + minEAP
+		elvesSurvived, battle := tryElfAP("../data.txt", ap)
+		if elvesSurvived {
+			if maxEAP == ap {
+				maxEAP -= 1
+			} else {
+				maxEAP = ap
+			}
+			if minEAP >= maxEAP {
+				successfulBattle = battle
+				break
+			}
+		} else {
+			if minEAP == ap {
+				minEAP += 1
+			} else {
+				minEAP = ap
+			}
+		}
+
+	}
+
+	fmt.Println(successfulBattle.GetPlayerTurnOrder())
+	outcome, hp := successfulBattle.Outcome()
+	fmt.Printf("outcome: %d after %d rounds with hp %d using min Elf Attack Points:%d\n", outcome, successfulBattle.round, hp, minEAP)
+
 }
