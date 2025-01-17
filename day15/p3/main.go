@@ -2,12 +2,37 @@ package main
 
 import (
 	"fmt"
+	"github.com/jroimartin/gocui"
 	"github.com/mbordner/aoc2018/common"
 	"github.com/mbordner/aoc2018/common/file"
+	"github.com/pkg/errors"
+	"io"
 	"log"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 )
+
+var (
+	Black   = Color("\033[1;30m%s\033[0m")
+	Red     = Color("\033[1;31m%s\033[0m")
+	Green   = Color("\033[1;32m%s\033[0m")
+	Yellow  = Color("\033[1;33m%s\033[0m")
+	Purple  = Color("\033[1;34m%s\033[0m")
+	Magenta = Color("\033[1;35m%s\033[0m")
+	Teal    = Color("\033[1;36m%s\033[0m")
+	Gray    = Color("\033[1;37m%s\033[0m")
+	White   = Color("\033[1;97m%s\033[0m")
+)
+
+func Color(colorString string) func(...interface{}) string {
+	sprint := func(args ...interface{}) string {
+		return fmt.Sprintf(colorString,
+			fmt.Sprint(args...))
+	}
+	return sprint
+}
 
 var (
 	N    = Pos{-1, 0}
@@ -81,14 +106,15 @@ func (g Grid) Clone() Grid {
 }
 
 type Player struct {
-	pos Pos
-	pt  byte
-	hp  int
-	ap  int
+	pos       Pos
+	pt        byte
+	hp        int
+	ap        int
+	attacking bool
 }
 
 func (p *Player) String() string {
-	return fmt.Sprintf("{t:%s, p:%s, hp:%d, ap:%d}", string(p.pt), p.pos, p.hp, p.ap)
+	return fmt.Sprintf("{%s%shp:%d,ap:%d}", string(p.pt), p.pos, p.hp, p.ap)
 }
 
 // CanAttack checks if a grid open adjacent position has an enemy team member, returns team member if so
@@ -124,9 +150,7 @@ func (p *Player) Attack(grid Grid, enemy Team) *Player {
 	})
 	if len(aps) > 0 {
 		ap := aps[0]
-		//log.Printf("player %s attacks %s\n", p, ap)
 		ap.hp -= p.ap
-		//log.Printf("attacked player %s\n", ap)
 		return ap
 	}
 	return nil
@@ -238,6 +262,11 @@ type Battle struct {
 	dead         Players
 	ref          Referee
 	disqualified bool
+	uiUpdate     chan bool
+}
+
+func (b *Battle) UIUpdate() {
+	b.uiUpdate <- true
 }
 
 func (b *Battle) GridString() string {
@@ -253,6 +282,64 @@ func (b *Battle) GridString() string {
 		ss = append(ss, string(g[y]))
 	}
 	return strings.Join(ss, "\n")
+}
+
+func (b *Battle) PrintStats(out io.Writer) {
+	lines := make([][]string, len(b.grid))
+	for y := range b.grid {
+		lines[y] = make([]string, 0, 10)
+	}
+	players := b.GetPlayerTurnOrder()
+	for _, player := range players {
+		y := player.pos.Y
+		if player.attacking {
+			lines[y] = append(lines[y], Red(player.String()))
+		} else {
+			if player.pt == Elf {
+				lines[y] = append(lines[y], Teal(player.String()))
+			} else {
+				lines[y] = append(lines[y], Green(player.String()))
+			}
+		}
+	}
+	for y := range lines {
+		fmt.Fprintln(out, strings.Join(lines[y], ", "))
+	}
+}
+
+func (b *Battle) PrintGrid(out io.ReadWriter) {
+
+	grid := make([][]string, len(b.grid))
+	for y := range grid {
+		grid[y] = make([]string, len(b.grid[y]))
+		for x := range grid[y] {
+			if b.grid[y][x] == Wall {
+				grid[y][x] = fmt.Sprintf("%s", Black(string(Wall)))
+			} else {
+				grid[y][x] = fmt.Sprintf("%s", Gray(string(Space)))
+			}
+		}
+	}
+
+	for pos, p := range b.elves {
+		if p.attacking {
+			grid[pos.Y][pos.X] = fmt.Sprintf("%s", Red(string(Elf)))
+		} else {
+			grid[pos.Y][pos.X] = fmt.Sprintf("%s", Teal(string(Elf)))
+		}
+	}
+	for pos, p := range b.goblins {
+		if p.attacking {
+			grid[pos.Y][pos.X] = fmt.Sprintf("%s", Red(string(Goblin)))
+		} else {
+			grid[pos.Y][pos.X] = fmt.Sprintf("%s", Green(string(Goblin)))
+		}
+	}
+
+	for y := range grid {
+		fmt.Fprintln(out, "\u001b[1m"+strings.Join(grid[y], ""))
+	}
+
 }
 
 func (b *Battle) GetPlayerTurnOrder() Players {
@@ -357,13 +444,10 @@ func (b *Battle) RunRound() (int, int, int) {
 	numMoved, numAttacked, numDied := 0, 0, 0
 
 	if !b.Over() {
-		//log.Printf("starting round %d\n", b.round)
-
 		players := b.GetPlayerTurnOrder()
 		for _, p := range players {
 
 			if b.Over() {
-				//log.Printf("round ended early\n")
 				return numMoved, numAttacked, numDied // break out of round run, full round can't complete
 			}
 
@@ -375,21 +459,16 @@ func (b *Battle) RunRound() (int, int, int) {
 					playerTeam, enemyTeam = b.goblins, b.elves
 				}
 
-				//log.Printf("player %s taking turn\n", p)
+				p.attacking = false
 
 				var enemy *Player
 				if enemy = p.CanAttack(b.grid, enemyTeam); enemy == nil {
 
-					// check if player can move since we can't attack yet
 					path := b.GetMovePath(p)
 					if len(path) > 0 {
 						np := path[0]
-						//gp := path[len(path)-1]
-						//log.Printf("player %s wanting to move to %s starting with %s\n", p, gp, np)
 						playerTeam.MovePlayer(p, np)
 						numMoved++
-					} else {
-						//log.Printf("player %s tried to move but can't\n", p)
 					}
 
 					// after move, recheck if we can attack
@@ -398,6 +477,7 @@ func (b *Battle) RunRound() (int, int, int) {
 
 				if enemy != nil { // could attack an enemy
 
+					p.attacking = true
 					attacked := p.Attack(b.grid, enemyTeam)
 					if attacked != nil {
 						numAttacked++
@@ -412,7 +492,6 @@ func (b *Battle) RunRound() (int, int, int) {
 									return numMoved, numAttacked, numDied
 								}
 							}
-							//log.Printf("player %s died\n", attacked)
 						}
 					}
 
@@ -420,7 +499,6 @@ func (b *Battle) RunRound() (int, int, int) {
 			}
 		}
 
-		//log.Printf("round %d complete. moved: %d, attacked: %d, died: %d\n", b.round, numMoved, numAttacked, numDied)
 		b.round++
 	}
 
@@ -437,17 +515,14 @@ func (b *Battle) HasAnyAlive(pt byte) bool {
 	return false
 }
 
-func (b *Battle) Run() (int, int) {
-	//fmt.Println(b.GridString())
+func (b *Battle) Run(wg *sync.WaitGroup) {
+	b.UIUpdate()
 	for !b.Over() {
+		time.Sleep(time.Millisecond * 1100)
 		b.RunRound()
-		//numMoved, numAttacked, numDied := b.RunRound()
-		//fmt.Printf("After round %d.. moved: %d, attacked: %d, died %d\n", b.round, numMoved, numAttacked, numDied)
-		//if numMoved > 0 || numDied > 0 {
-		//fmt.Println(b.GridString())
-		//}
+		b.UIUpdate()
 	}
-	return b.Outcome()
+	wg.Done()
 }
 
 func (b *Battle) Outcome() (int, int) {
@@ -461,9 +536,32 @@ func (b *Battle) Outcome() (int, int) {
 	return hpSum * b.round, hpSum
 }
 
-func tryElfAP(dataFile string, eAP int) (bool, *Battle) {
-	log.Printf("trying with %d elf attack points", eAP)
-	b := NewBattle(dataFile, 200, eAP, 200, 3)
+func main() {
+
+	g, err := gocui.NewGui(gocui.OutputNormal)
+	if err != nil {
+		log.Panicln(err)
+	}
+	defer g.Close()
+
+	g.SetManagerFunc(layout)
+
+	if err := g.SetKeybinding("", gocui.KeyCtrlC, gocui.ModNone, quit); err != nil {
+		log.Panicln(err)
+	}
+
+	if err := g.MainLoop(); err != nil && !errors.Is(err, gocui.ErrQuit) {
+		log.Panicln(err)
+	}
+
+}
+
+func loop(g *gocui.Gui) {
+
+	elfAP := 20
+	dataFile := "../data.txt"
+
+	b := NewBattle(dataFile, 200, elfAP, 200, 3)
 
 	referee := func(p *Player) bool {
 		if p.Type() == Elf {
@@ -473,61 +571,64 @@ func tryElfAP(dataFile string, eAP int) (bool, *Battle) {
 	}
 
 	b.ref = referee
-	b.Run()
-	if b.HasAnyAlive(Goblin) {
-		return false, nil
-	}
+	b.uiUpdate = make(chan bool)
 
-	return true, b
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	uiUpdateKill := make(chan bool)
+
+	go func() {
+		for {
+			select {
+			case <-b.uiUpdate:
+
+				g.Update(func(g *gocui.Gui) error {
+					v, _ := g.View("grid")
+					v.Clear()
+					b.PrintGrid(v)
+					v, _ = g.View("stats")
+					v.Clear()
+					b.PrintStats(v)
+					return nil
+				})
+
+			case <-uiUpdateKill:
+				return
+			}
+		}
+	}()
+
+	go b.Run(&wg)
+
+	wg.Wait()
+
+	uiUpdateKill <- true
 }
 
-func main() {
-	// test1.txt ✓  4988   15
-	// test3.txt ✓  31284   4
-	// test4.txt ✓  3478   15
-	// test5.txt ✓  6474   12
-	// test6.txt ✓  1140   34
-
-	maxEAP := 50
-	minEAP := 4
-	var successfulBattle *Battle
-
-	// find some upper bound
-	for {
-		elvesSurvived, _ := tryElfAP("../data.txt", maxEAP)
-		if !elvesSurvived {
-			maxEAP *= 2
-		} else {
-			break
+func layout(g *gocui.Gui) error {
+	maxX, maxY := g.Size()
+	if maxX > 0 && maxY > 0 {
+		if v, err := g.SetView("stats", 34, 0, maxX-4, 33); err != nil {
+			if !errors.Is(err, gocui.ErrUnknownView) {
+				return err
+			}
+			v.BgColor = gocui.ColorBlack
+			v.FgColor = gocui.ColorWhite
+		}
+		if v, err := g.SetView("grid", 0, 0, 33, 33); err != nil {
+			if !errors.Is(err, gocui.ErrUnknownView) {
+				return err
+			}
+			v.BgColor = gocui.ColorWhite
+			v.FgColor = gocui.ColorBlack
+			go loop(g)
 		}
 	}
 
-	// bin search
-	for {
-		ap := (maxEAP-minEAP-1)/2 + minEAP
-		elvesSurvived, battle := tryElfAP("../data.txt", ap)
-		if elvesSurvived {
-			if maxEAP == ap {
-				maxEAP -= 1
-			} else {
-				maxEAP = ap
-			}
-			if minEAP >= maxEAP {
-				successfulBattle = battle
-				break
-			}
-		} else {
-			if minEAP == ap {
-				minEAP += 1
-			} else {
-				minEAP = ap
-			}
-		}
+	return nil
+}
 
-	}
-
-	fmt.Println(successfulBattle.GetPlayerTurnOrder())
-	outcome, hp := successfulBattle.Outcome()
-	fmt.Printf("outcome: %d after %d rounds with hp %d using min Elf Attack Points:%d\n", outcome, successfulBattle.round, hp, minEAP)
-
+func quit(g *gocui.Gui, v *gocui.View) error {
+	return gocui.ErrQuit
 }
