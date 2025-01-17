@@ -4,19 +4,18 @@ import (
 	"fmt"
 	"github.com/mbordner/aoc2018/common"
 	"strconv"
+	"strings"
 )
 
 type Recipes struct {
 	scores []byte
 	elves  []int
-	//lengths []int
 }
 
 func NewRecipes() *Recipes {
 	r := &Recipes{}
 	r.scores = []byte{3, 7}
 	r.elves = []int{0, 1}
-	//r.lengths = []int{2}
 	return r
 }
 
@@ -30,11 +29,14 @@ func (r *Recipes) Len() int {
 }
 
 func (r *Recipes) Last(i int) string {
-	bs := make([]byte, 0, i)
-	for s := len(r.scores) - i; s < len(r.scores); s++ {
-		bs = append(bs, byte(r.scores[s])+'0')
+	if len(r.scores) > i {
+		bs := make([]byte, 0, i)
+		for s := len(r.scores) - i; s < len(r.scores); s++ {
+			bs = append(bs, byte(r.scores[s])+'0')
+		}
+		return string(bs)
 	}
-	return string(bs)
+	return string(r.scores)
 }
 
 func (r *Recipes) CreateNew() int {
@@ -63,7 +65,6 @@ func (r *Recipes) CreateNew() int {
 			r.elves[e] = i
 		}
 	}
-	//r.lengths = append(r.lengths, len(r.scores))
 	return created
 }
 
@@ -71,18 +72,20 @@ func main() {
 	recipes := NewRecipes()
 
 	created := recipes.Len()
-	stopAfter := 503761
-	needAfter := 10
-	for created < stopAfter {
+
+	lookingFor := "503761"
+
+	for {
 		created += recipes.CreateNew()
+		last := recipes.Last(len(lookingFor) + 1)
+		if index := strings.Index(last, lookingFor); index != -1 {
+			recipesBefore := recipes.Len() - len(lookingFor)
+			if index == 0 {
+				recipesBefore -= 1
+			}
+			fmt.Println(recipesBefore)
+			break
+		}
 	}
 
-	curLen := recipes.Len()
-
-	l := curLen + needAfter - (created - stopAfter)
-	for recipes.Len() < l {
-		recipes.CreateNew()
-	}
-
-	fmt.Println(recipes.Last(needAfter + (recipes.Len() - l))[0:needAfter])
 }
