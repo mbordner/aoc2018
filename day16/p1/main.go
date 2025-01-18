@@ -144,7 +144,6 @@ func (c *Computer) SetRegVal(r int, val int) {
 	}
 }
 
-// 544 too low
 func main() {
 	tests, program := getData("../data.txt")
 	fmt.Println(len(tests), len(program))
