@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 func PopulateStringCombinationsAtLength(results map[string]bool, pickChars string, prefix string, length int) {
@@ -95,8 +96,16 @@ type Pos struct {
 	X int
 }
 
+func (p Pos) Dis(o Pos) int {
+	return Abs(p.X-o.X) + Abs(p.Y-o.Y)
+}
+
 func (p Pos) Add(o Pos) Pos {
 	return Pos{Y: p.Y + o.Y, X: p.X + o.X}
+}
+
+func (p Pos) Sub(o Pos) Pos {
+	return Pos{Y: p.Y - o.Y, X: p.X - o.X}
 }
 
 func (p Pos) Scale(s int) Pos {
@@ -122,24 +131,31 @@ func (p Pos) String() string {
 
 type Positions []Pos
 
-func (p Positions) Extents() (Pos, Pos) {
-	var min, max Pos = p[0], p[0]
-	for i := 1; i < len(p); i++ {
-		o := p[i]
-		if o.Y < min.Y {
-			min = o
+func (ps Positions) Extents() (Pos, Pos) {
+	minP, maxP := ps[0], ps[0]
+	for i := 1; i < len(ps); i++ {
+		if ps[i].X < minP.X {
+			minP.X = ps[i].X
 		}
-		if o.X < min.X {
-			min = o
+		if ps[i].X > maxP.X {
+			maxP.X = ps[i].X
 		}
-		if o.Y > max.Y {
-			max = o
+		if ps[i].Y < minP.Y {
+			minP.Y = ps[i].Y
 		}
-		if o.X > max.X {
-			max = o
+		if ps[i].Y > maxP.Y {
+			maxP.Y = ps[i].Y
 		}
 	}
-	return min, max
+	return minP, maxP
+}
+
+func (g Grid) Set(p Pos, v byte) {
+	g[p.Y][p.X] = v
+}
+
+func (g Grid) Val(p Pos) byte {
+	return g[p.Y][p.X]
 }
 
 func (g Grid) Contains(x, y int) bool {
@@ -153,10 +169,16 @@ func (g Grid) ContainsPos(p Pos) bool {
 	return g.Contains(p.X, p.Y)
 }
 
-func (g Grid) Print() {
-	for _, row := range g {
-		fmt.Println(string(row))
+func (g Grid) String() string {
+	lines := make([]string, len(g))
+	for y, row := range g {
+		lines[y] = string(row)
 	}
+	return strings.Join(lines, "\n")
+}
+
+func (g Grid) Print() {
+	fmt.Println(g.String())
 }
 
 func ConvertGrid(lines []string) Grid {
@@ -219,11 +241,40 @@ func (s *Stack[T]) Pop() *T {
 
 type PosContainer map[Pos]bool
 
-func (v PosContainer) Has(p Pos) bool {
-	if b, e := v[p]; e {
+func (pc PosContainer) Has(p Pos) bool {
+	if b, e := pc[p]; e {
 		return b
 	}
 	return false
+}
+
+func (pc PosContainer) Extents() (Pos, Pos) {
+	var minP, maxP Pos
+	if len(pc) > 0 {
+		for p, b := range pc {
+			if b {
+				minP, maxP = p, p
+				break
+			}
+		}
+		for p, b := range pc {
+			if b {
+				if p.X < minP.X {
+					minP.X = p.X
+				}
+				if p.X > maxP.X {
+					maxP.X = p.X
+				}
+				if p.Y < minP.Y {
+					minP.Y = p.Y
+				}
+				if p.Y > maxP.Y {
+					maxP.Y = p.Y
+				}
+			}
+		}
+	}
+	return minP, maxP
 }
 
 type PosLinker map[Pos]Pos
