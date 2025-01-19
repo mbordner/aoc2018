@@ -123,10 +123,34 @@ var (
 	DD = DS
 	DW = Pos{Y: 0, X: -1}
 	DL = DW
+
+	DUL = Pos{Y: -1, X: -1}
+	DUR = Pos{Y: -1, X: 1}
+	DDL = Pos{Y: 1, X: -1}
+	DDR = Pos{Y: 1, X: 1}
+
+	AdjacentDirs            = Positions{DU, DR, DD, DL}
+	AdjacentWithCornersDirs = Positions{DUL, DU, DUR, DR, DDR, DD, DDL, DL}
 )
 
 func (p Pos) String() string {
 	return fmt.Sprintf("{%d,%d}", p.X, p.Y)
+}
+
+func (p Pos) Adjacent() Positions {
+	ap := make(Positions, len(AdjacentDirs))
+	for i, dir := range AdjacentDirs {
+		ap[i] = p.Add(dir)
+	}
+	return ap
+}
+
+func (p Pos) AdjacentWithCorners() Positions {
+	ap := make(Positions, len(AdjacentWithCornersDirs))
+	for i, dir := range AdjacentWithCornersDirs {
+		ap[i] = p.Add(dir)
+	}
+	return ap
 }
 
 type Positions []Pos
@@ -148,6 +172,15 @@ func (ps Positions) Extents() (Pos, Pos) {
 		}
 	}
 	return minP, maxP
+}
+
+func (g Grid) Clone() Grid {
+	og := make(Grid, len(g))
+	for y := range g {
+		og[y] = make([]byte, len(g[y]))
+		copy(og[y], g[y])
+	}
+	return og
 }
 
 func (g Grid) Set(p Pos, v byte) {
