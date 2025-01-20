@@ -11,5 +11,6 @@ func main() {
 	fmt.Println(cmath.Sum(cmath.Factors(num)))
 	fmt.Println(cmath.PrimeFactors(num))
 	fmt.Println(cmath.Product(cmath.PrimeFactors(num)))
+	fmt.Println(cmath.Sum(cmath.PrimeFactors(num)))
 	fmt.Println(cmath.IsPrime(num))
 }

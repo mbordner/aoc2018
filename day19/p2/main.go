@@ -147,7 +147,6 @@ func main() {
 
 	c.Load("../data.txt")
 	c.SetRegVal(0, 1)
-	//c.SetRegVal(4, 10551287)
 
 	c.Run()
 
