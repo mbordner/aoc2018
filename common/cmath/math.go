@@ -1,7 +1,16 @@
 package cmath
 
+import (
+	"math"
+	"sort"
+)
+
 type Number interface {
 	int | int32 | int64 | float32 | float64
+}
+
+type IntNumber interface {
+	int | int32 | int64 | uint64
 }
 
 func Factorial[V Number](v V) V {
@@ -15,3 +24,83 @@ var (
 	MaxInt   = int(^uint(0) >> 1)
 	MaxInt64 = int64(^uint64(0) >> 1)
 )
+
+func Factors[V IntNumber](v V) []V {
+	var factors []V
+
+	// Check from 1 to the square root of n
+	for i := V(1); i <= V(math.Sqrt(float64(v))); i++ {
+		if v%i == 0 {
+			factors = append(factors, i)
+
+			// If the divisor is not the square root, add the corresponding divisor
+			if v/i != i {
+				factors = append(factors, v/i)
+			}
+		}
+	}
+
+	sort.Slice(factors, func(i, j int) bool {
+		return factors[i] < factors[j]
+	})
+
+	return factors
+}
+
+func IsPrime[V IntNumber](v V) bool {
+	if v <= 1 {
+		return false
+	} else if v == 2 {
+		return true
+	} else if v%2 == 0 {
+		return false
+	}
+	sqrt := V(math.Sqrt(float64(v)))
+	for i := V(3); i <= sqrt; i += 2 {
+		if v%i == 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func Sum[V Number](vs []V) V {
+	sum := V(0)
+	for _, v := range vs {
+		sum += v
+	}
+	return sum
+}
+
+func Product[V Number](vs []V) V {
+	product := vs[0]
+	for _, v := range vs[1:] {
+		product *= v
+	}
+	return product
+}
+
+func PrimeFactors[V IntNumber](v V) []V {
+	var factors []V
+
+	// Check for divisibility by 2
+	for v%2 == 0 {
+		factors = append(factors, 2)
+		v /= 2
+	}
+
+	// Check for divisibility by odd numbers
+	for i := V(3); i*i <= v; i += 2 {
+		for v%i == 0 {
+			factors = append(factors, i)
+			v /= i
+		}
+	}
+
+	// If n is a prime number greater than 2
+	if v > 2 {
+		factors = append(factors, v)
+	}
+
+	return factors
+}
