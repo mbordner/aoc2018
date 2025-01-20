@@ -137,6 +137,28 @@ func (p Pos) String() string {
 	return fmt.Sprintf("{%d,%d}", p.X, p.Y)
 }
 
+func (p Pos) OppositeDir() Pos {
+	switch p {
+	case DN:
+		return DS
+	case DU:
+		return DD
+	case DE:
+		return DW
+	case DR:
+		return DL
+	case DS:
+		return DN
+	case DD:
+		return DU
+	case DW:
+		return DE
+	case DL:
+		return DR
+	}
+	return p
+}
+
 func (p Pos) Adjacent() Positions {
 	ap := make(Positions, len(AdjacentDirs))
 	for i, dir := range AdjacentDirs {
