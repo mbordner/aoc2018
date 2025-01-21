@@ -36,24 +36,32 @@ type RoomsResolver struct {
 	pattern string
 }
 
-func (rr *RoomsResolver) resolve(cur *Room, s, e int) *Room {
-	if s == e || cur == nil {
-		return cur
+func (rr *RoomsResolver) resolve(cur *Room, s, e int) []*Room {
+	if s == e {
+		return []*Room{cur}
 	}
 	if rr.pattern[s] == ParenStart {
 		closeIndex := rr.searchCloseParen(s, e)
 		options := rr.splitOptions(s+1, closeIndex)
-		lasts := make(RoomMap)
+		lastsMap := make(RoomMap)
 		for i := 0; i < len(options); i += 2 {
-			last := rr.resolve(cur, options[i], options[i+1])
-			if last != nil {
-				lasts[last.id] = last
+			for _, last := range rr.resolve(cur, options[i], options[i+1]) {
+				if last != nil {
+					lastsMap[last.id] = last
+				}
 			}
 		}
-		for _, last := range lasts {
-			rr.resolve(last, closeIndex+1, e)
+		if closeIndex+1 < e {
+			for _, last := range lastsMap {
+				rr.resolve(last, closeIndex+1, e)
+			}
+			return nil
 		}
-		return nil
+		lasts := make([]*Room, 0, len(lastsMap))
+		for _, last := range lastsMap {
+			lasts = append(lasts, last)
+		}
+		return lasts
 	} else {
 		var np common.Pos
 		var dir common.Pos
@@ -89,7 +97,7 @@ func (rr *RoomsResolver) resolve(cur *Room, s, e int) *Room {
 			nr.n = cur
 		case common.DW:
 			cur.w = nr
-			cur.e = cur
+			nr.e = cur
 		}
 		return rr.resolve(nr, s+1, e)
 	}
@@ -104,7 +112,7 @@ func (rr *RoomsResolver) splitOptions(s, e int) []int {
 			i = rr.searchCloseParen(i, e)
 		} else if rr.pattern[i] == Pipe {
 			options = append(options, []int{optionStart, i}...)
-			optionStart = i + 1 // it's possible that there could be || in the pattern, but it doesn't exist in data..
+			optionStart = i + 1 // it's possible that there could be || in the pattern, but it doesn't exist in data.
 		}
 	}
 	options = append(options, []int{optionStart, e}...)
@@ -151,6 +159,9 @@ func NewRoomsResolver(pattern string) *RoomsResolver {
 func main() {
 	content, _ := file.GetContent("../data.txt")
 	rr := NewRoomsResolver(strings.TrimSpace(string(content)))
+	//rr = NewRoomsResolver(`^WNE$`)                                     // 3
+	//rr = NewRoomsResolver(`^ENWWW(NEEE|SSE(EE|N))$`)                   // 10
+	//rr = NewRoomsResolver(`^ENNWSWW(NEWS|)SSSEEN(WNSE|)EE(SWEN|)NNN$`) // 18
 	rm := rr.Resolve()
 	visited := make(RoomMap)
 	prev := make(common.PosLinker)
