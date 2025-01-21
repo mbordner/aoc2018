@@ -65,10 +65,10 @@ func (c *Computer) Run() {
 		*c.ptr++
 		c.executed++
 		if c.executed == 1809 {
-			//break
+			fmt.Println(c.regs)
 		}
-		if *c.ptr == 28 {
-			fmt.Printf("\n")
+		if *c.ptr == 23 {
+			fmt.Println(c.GetRegVal(3))
 		}
 	}
 }
@@ -151,11 +151,14 @@ func (c *Computer) SetRegVal(r int, val int) {
 	}
 }
 
+// 985144843286 too high
+// 16143370 too high
+// 11474091 too high
 func main() {
 	c := NewComputer(6)
 
 	c.Load("../data.txt")
-	c.SetRegVal(0, 11474091)
+	c.SetRegVal(0, 0)
 
 	c.Run()
 
