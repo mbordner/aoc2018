@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"github.com/mbordner/aoc2018/common"
 	"github.com/mbordner/aoc2018/common/file"
+	"log"
 	"strings"
 )
 
@@ -163,6 +163,7 @@ func main() {
 	//rr = NewRoomsResolver(`^ENWWW(NEEE|SSE(EE|N))$`)                   // 10
 	//rr = NewRoomsResolver(`^ENNWSWW(NEWS|)SSSEEN(WNSE|)EE(SWEN|)NNN$`) // 18
 	rm := rr.Resolve()
+	log.Printf("rooms resolved, number of rooms: %d\n", len(rr.rooms))
 	visited := make(RoomMap)
 	prev := make(common.PosLinker)
 
@@ -195,6 +196,8 @@ func main() {
 		}
 	}
 
+	log.Printf("paths found.\n")
+
 	maxLen := 0
 	maxPath := common.Positions{}
 	paths := make(map[common.Pos]common.Positions)
@@ -213,10 +216,10 @@ func main() {
 		}
 	}
 
-	fmt.Println("number of rooms:", len(rm))
-	fmt.Println("number of paths:", len(paths))
-	fmt.Println("max path length:", maxLen)
-	fmt.Println("max path:", maxPath)
+	log.Printf("number of rooms: %d\n", len(rm))
+	log.Printf("number of paths: %d\n", len(paths))
+	log.Printf("max path length: %d\n", maxLen)
+	log.Printf("max path: %v\n", maxPath)
 
 	count := 0
 	for _, path := range paths {
@@ -225,6 +228,6 @@ func main() {
 		}
 	}
 
-	fmt.Printf("%d rooms have a path that pass through at least 1000 doors.\n", count)
+	log.Printf("%d rooms have a path that pass through at least 1000 doors.\n", count)
 
 }
