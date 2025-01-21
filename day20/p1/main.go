@@ -30,24 +30,34 @@ type Room struct {
 	w  *Room
 }
 
-func (rm RoomMap) resolve(cur *Room, pattern string) *Room {
-	if len(pattern) == 0 || cur == nil {
+type RoomsResolver struct {
+	rooms   RoomMap
+	mem     map[int]int
+	pattern string
+}
+
+func (rr *RoomsResolver) resolve(cur *Room, s, e int) *Room {
+	if s == e || cur == nil {
 		return cur
 	}
-	if pattern[0] == ParenStart {
-		closeIndex := rm.searchCloseParen(0, pattern)
-		subPattern := pattern[1:closeIndex]
-		continuePattern := pattern[closeIndex+1:]
-		options := rm.splitOptions(subPattern)
-		for _, option := range options {
-			last := rm.resolve(cur, option)
-			rm.resolve(last, continuePattern)
+	if rr.pattern[s] == ParenStart {
+		closeIndex := rr.searchCloseParen(s, e)
+		options := rr.splitOptions(s+1, closeIndex)
+		lasts := make(RoomMap)
+		for i := 0; i < len(options); i += 2 {
+			last := rr.resolve(cur, options[i], options[i+1])
+			if last != nil {
+				lasts[last.id] = last
+			}
+		}
+		for _, last := range lasts {
+			rr.resolve(last, closeIndex+1, e)
 		}
 		return nil
 	} else {
 		var np common.Pos
 		var dir common.Pos
-		switch pattern[0] {
+		switch rr.pattern[s] {
 		case 'N':
 			dir = common.DN
 			np = cur.id.Add(dir)
@@ -62,10 +72,10 @@ func (rm RoomMap) resolve(cur *Room, pattern string) *Room {
 			np = cur.id.Add(dir)
 		}
 		var nr *Room
-		nr = rm.Has(np)
+		nr = rr.rooms.Has(np)
 		if nr == nil {
 			nr = &Room{id: np}
-			rm[nr.id] = nr
+			rr.rooms[nr.id] = nr
 		}
 		switch dir {
 		case common.DN:
@@ -81,50 +91,39 @@ func (rm RoomMap) resolve(cur *Room, pattern string) *Room {
 			cur.w = nr
 			cur.e = cur
 		}
-		return rm.resolve(nr, pattern[1:])
+		return rr.resolve(nr, s+1, e)
 	}
 	panic("unreachable")
 }
 
-func (rm RoomMap) splitOptions(pattern string) []string {
-	var options []string
-	optionStart := 0
-	for i := 0; i < len(pattern); i++ {
-		if pattern[i] == ParenStart {
-			i = rm.searchCloseParen(i, pattern)
-		} else if pattern[i] == Pipe {
-			option := pattern[optionStart:i]
-			options = append(options, option)
+func (rr *RoomsResolver) splitOptions(s, e int) []int {
+	var options []int
+	optionStart := s
+	for i := s; i < e; i++ {
+		if rr.pattern[i] == ParenStart {
+			i = rr.searchCloseParen(i, e)
+		} else if rr.pattern[i] == Pipe {
+			options = append(options, []int{optionStart, i}...)
 			optionStart = i + 1 // it's possible that there could be || in the pattern, but it doesn't exist in data..
 		}
 	}
-	options = append(options, pattern[optionStart:])
+	options = append(options, []int{optionStart, e}...)
 	return options
 }
 
-type cpMem struct {
-	i int
-	p string
-}
-
-var (
-	mem = make(map[cpMem]int)
-)
-
-func (rm RoomMap) searchCloseParen(start int, pattern string) int {
-	sm := cpMem{i: start, p: pattern}
-	if i, e := mem[sm]; e {
+func (rr *RoomsResolver) searchCloseParen(s, e int) int {
+	if i, exists := rr.mem[s]; exists {
 		return i
 	}
 	ps := make(common.Stack[int], 0, 10)
-	if pattern[start] == ParenStart {
-		ps.Push(start)
-		for i := start + 1; i < len(pattern); i++ {
-			if pattern[i] == ParenStart {
+	if rr.pattern[s] == ParenStart {
+		ps.Push(s)
+		for i := s + 1; i < e; i++ {
+			if rr.pattern[i] == ParenStart {
 				ps.Push(i)
-			} else if pattern[i] == ParenEnd {
+			} else if rr.pattern[i] == ParenEnd {
 				if ps.Len() == 1 {
-					mem[sm] = i
+					rr.mem[s] = i
 					return i
 				} else {
 					ps.Pop()
@@ -132,22 +131,27 @@ func (rm RoomMap) searchCloseParen(start int, pattern string) int {
 			}
 		}
 	}
-	return start
+	return s
 }
 
-func (rm RoomMap) Resolve(pattern string) {
+func (rr *RoomsResolver) Resolve() RoomMap {
 	cur := &Room{id: common.Pos{}}
-	start := strings.Index(pattern, "^")
-	end := strings.Index(pattern, "$")
-	pattern = pattern[start+1 : end]
-	rm[cur.id] = cur
-	rm.resolve(cur, pattern)
+	start := strings.Index(rr.pattern, "^")
+	end := strings.Index(rr.pattern, "$")
+	rr.rooms[cur.id] = cur
+	rr.resolve(cur, start, end)
+	return rr.rooms
 }
 
+func NewRoomsResolver(pattern string) *RoomsResolver {
+	return &RoomsResolver{pattern: pattern, mem: make(map[int]int), rooms: make(RoomMap)}
+}
+
+// 702 too low
 func main() {
 	content, _ := file.GetContent("../data.txt")
-	rm := make(RoomMap)
-	rm.Resolve(strings.TrimSpace(string(content)))
+	rr := NewRoomsResolver(strings.TrimSpace(string(content)))
+	rm := rr.Resolve()
 	visited := make(RoomMap)
 	prev := make(common.PosLinker)
 
@@ -198,7 +202,9 @@ func main() {
 		}
 	}
 
-	fmt.Println(maxLen)
-	fmt.Println(maxPath)
+	fmt.Println("number of rooms:", len(rm))
+	fmt.Println("number of paths:", len(paths))
+	fmt.Println("max path length:", maxLen)
+	fmt.Println("max path:", maxPath)
 
 }
