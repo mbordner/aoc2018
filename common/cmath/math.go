@@ -72,6 +72,15 @@ func Sum[V Number](vs []V) V {
 	return sum
 }
 
+// Sums returns all positive pairs from 0...v that add up to v sorted
+func Sums[V IntNumber](v V) []V {
+	vs := make([]V, 0, (v-2)*2)
+	for i, j := V(0), v; i <= j; i, j = i+1, j-1 {
+		vs = append(vs, []V{i, j}...)
+	}
+	return vs
+}
+
 func Product[V Number](vs []V) V {
 	product := vs[0]
 	for _, v := range vs[1:] {
