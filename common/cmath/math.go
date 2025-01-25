@@ -13,7 +13,7 @@ type IntNumber interface {
 	int | int32 | int64 | uint64
 }
 
-func Factorial[V Number](v V) V {
+func Factorial[V IntNumber](v V) V {
 	if v == V(1) {
 		return v
 	}
@@ -74,7 +74,7 @@ func Sum[V Number](vs []V) V {
 
 // Sums returns all positive pairs from 0...v that add up to v sorted
 func Sums[V IntNumber](v V) []V {
-	vs := make([]V, 0, (v-2)*2)
+	vs := make([]V, 0, v*2)
 	for i, j := V(0), v; i <= j; i, j = i+1, j-1 {
 		vs = append(vs, []V{i, j}...)
 	}
@@ -113,3 +113,18 @@ func PrimeFactors[V IntNumber](v V) []V {
 
 	return factors
 }
+
+/*
+*
+
+combinations formula:
+C(n,k)  =  n! /   k! (n-k)!
+n choose 5 (order doesn't matter)
+
+Permutations:
+P(n,k) = n! / (n-k)!
+
+P(n,k) from n card deck, how many k card decks can be made.
+
+k! - how many different ways to arrange k cards
+*/

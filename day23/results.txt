@@ -1,0 +1,20 @@
+i hate this problem, i had a hard time solving it.
+
+basically, without understanding how to solve this, i scaled all
+the positions and signal radii by 1/100000.
+
+i checked for surface points collisions to find the general area.
+
+it was too slow at this scale, but after about 60 or so that collided at
+268,466,211, i stopped the process, and scaled that search point back
+by 100000.
+
+from here I basically did a binary/breadth first search fairly manually with
+scale factors as i stepped through points.
+
+I got lucky with trial and error to find new search points.  the process was basically,
+restart with new search points periodically as the brute force expansion slows down.
+sometimes i adjusted the scale between 1-10000 to jump around the area.
+
+I eventually found points where 977 nanobots collided, and this was the answer to
+my input.
