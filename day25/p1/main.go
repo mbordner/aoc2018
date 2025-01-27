@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/mbordner/aoc2018/common/file"
+	"strconv"
 	"strings"
 )
 
@@ -27,7 +29,7 @@ func (v Vector) ConstellationNeighborPossibilities() Vectors {
 		for y := -3 + abs(x); y <= 3-abs(x); y++ {
 			for z := -3 + abs(x) + abs(y); z <= 3-abs(x)-abs(y); z++ {
 				for w := -3 + abs(x) + abs(y) + abs(z); w <= 3-abs(x)-abs(y)-abs(z); w++ {
-					vector := Vector{X: x, Y: y, Z: z, W: w}
+					vector := v.Add(Vector{X: x, Y: y, Z: z, W: w})
 					if vector != v {
 						vectors = append(vectors, vector)
 					}
@@ -60,7 +62,61 @@ func abs(x int) int {
 }
 
 func main() {
-	vectors := Vector{}.ConstellationNeighborPossibilities()
-	fmt.Println(vectors)
-	fmt.Println(len(vectors))
+	/*
+		vectors := Vector{}.ConstellationNeighborPossibilities()
+		fmt.Println(vectors)
+		fmt.Println(len(vectors))
+	*/
+	vectors := getData("../data.txt")
+	var constellations []Vectors
+
+	for _, vector := range vectors {
+		var in, out []Vectors
+		for _, constellation := range constellations {
+			inConstellation := false
+			for _, v := range constellation {
+				if v.Dis(vector) <= 3 {
+					inConstellation = true
+					break
+				}
+			}
+
+			if inConstellation {
+				in = append(in, constellation)
+			} else {
+				out = append(out, constellation)
+			}
+		}
+
+		constellations = out
+
+		if len(in) == 0 {
+			in = append(in, Vectors{vector})
+		} else {
+			tmp := Vectors{vector}
+			for _, ic := range in {
+				tmp = append(tmp, ic...)
+			}
+			in = []Vectors{tmp}
+		}
+
+		constellations = append(constellations, in...)
+	}
+
+	fmt.Println(len(constellations))
+}
+
+func getData(filename string) Vectors {
+	lines, _ := file.GetLines(filename)
+	vectors := make(Vectors, len(lines))
+	for i, line := range lines {
+		tokens := strings.Split(line, ",")
+		vectors[i] = Vector{X: atoi(tokens[0]), Y: atoi(tokens[1]), Z: atoi(tokens[2]), W: atoi(tokens[3])}
+	}
+	return vectors
+}
+
+func atoi(s string) int {
+	val, _ := strconv.ParseInt(s, 10, 64)
+	return int(val)
 }
